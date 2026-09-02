@@ -5,13 +5,19 @@ if(!activeEntryBanner){
   activeEntryBanner=document.createElement('div');
   activeEntryBanner.id='activeEntryBanner';
   Object.assign(activeEntryBanner.style,{
-    position:'fixed',top:'12px',left:'50%',transform:'translateX(-50%)',
-    zIndex:'9999',display:'none',padding:'10px 16px',borderRadius:'999px',
-    background:'#1768e7',color:'#fff',fontSize:'16px',fontWeight:'800',
-    boxShadow:'0 8px 28px rgba(0,0,0,.35)',whiteSpace:'nowrap',
-    maxWidth:'92vw',overflow:'hidden',textOverflow:'ellipsis',pointerEvents:'none'
+    position:'fixed',left:'12px',right:'12px',transform:'none',
+    zIndex:'2147483647',display:'none',padding:'12px 14px',borderRadius:'12px',
+    background:'#1768e7',color:'#fff',fontSize:'17px',fontWeight:'800',
+    boxShadow:'0 8px 28px rgba(0,0,0,.45)',whiteSpace:'nowrap',
+    overflow:'hidden',textOverflow:'ellipsis',pointerEvents:'none',textAlign:'center'
   });
   document.body.appendChild(activeEntryBanner);
+}
+function positionActiveEntryBanner(){
+  if(activeEntryBanner.style.display==='none')return;
+  const vv=window.visualViewport;
+  const top=(vv?vv.offsetTop:window.scrollY)+10;
+  activeEntryBanner.style.top=top+'px';
 }
 function showActiveEntry(el){
   const tr=el.closest('tr');
@@ -24,6 +30,7 @@ function showActiveEntry(el){
   if(th&&th.textContent.trim())field=th.textContent.trim();
   activeEntryBanner.textContent=`正在盘点：${name} · ${field}`;
   activeEntryBanner.style.display='block';
+  positionActiveEntryBanner();
   tr.dataset.activeEntry='1';
   tr.style.outline='2px solid #1768e7';
   tr.style.outlineOffset='-2px';
@@ -36,6 +43,12 @@ function hideActiveEntry(el){
     if(!(a instanceof HTMLInputElement)||!a.closest('#tbody'))activeEntryBanner.style.display='none';
   },80);
 }
+
+if(window.visualViewport){
+  visualViewport.addEventListener('resize',positionActiveEntryBanner);
+  visualViewport.addEventListener('scroll',positionActiveEntryBanner);
+}
+window.addEventListener('scroll',positionActiveEntryBanner,{passive:true});
 
 document.addEventListener('focusin',e=>{
   const el=e.target;
