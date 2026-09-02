@@ -7,11 +7,12 @@ function shiftDate(s,days){let d=new Date(s+'T12:00:00');d.setDate(d.getDate()+d
 function shortDate(s){let d=new Date(s+'T12:00:00');return `${d.getMonth()+1}月${d.getDate()}日`}
 const TODAY=localISO(),YESTERDAY=shiftDate(TODAY,-1);
 function switchModule(m){
-  const active=document.activeElement;
-  if(active&&typeof active.blur==='function')active.blur();
+  const active=document.activeElement;if(active&&typeof active.blur==='function')active.blur();
   if(typeof activeEntryBanner!=='undefined'&&activeEntryBanner)activeEntryBanner.style.display='none';
   document.querySelectorAll('#tbody tr').forEach(tr=>{tr.style.outline='';tr.style.outlineOffset='';delete tr.dataset.activeEntry});
-  waterPage.classList.toggle('active',m==='water');duckPage.classList.toggle('active',m==='duck');waterModuleBtn.classList.toggle('active',m==='water');duckModuleBtn.classList.toggle('active',m==='duck');if(m==='duck')openDuckDate(duckDate||TODAY)
+  orderPage.classList.toggle('active',m==='order');waterPage.classList.toggle('active',m==='water');duckPage.classList.toggle('active',m==='duck');
+  orderModuleBtn.classList.toggle('active',m==='order');waterModuleBtn.classList.toggle('active',m==='water');duckModuleBtn.classList.toggle('active',m==='duck');
+  if(m==='duck')openDuckDate(duckDate||TODAY);if(m==='order'&&typeof renderOrder==='function')renderOrder();
 }
 function toastMsg(t){toast.textContent=t;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2200)}
 function closeImage(){imgModal.classList.remove('show')}
