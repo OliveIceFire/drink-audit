@@ -5,9 +5,9 @@ if(!activeEntryBanner){
   activeEntryBanner=document.createElement('div');
   activeEntryBanner.id='activeEntryBanner';
   Object.assign(activeEntryBanner.style,{
-    position:'fixed',left:'12px',right:'12px',transform:'none',
-    zIndex:'2147483647',display:'none',padding:'12px 14px',borderRadius:'12px',
-    background:'#1768e7',color:'#fff',fontSize:'17px',fontWeight:'800',
+    position:'fixed',left:'10px',right:'10px',transform:'none',
+    zIndex:'2147483647',display:'none',padding:'11px 14px',borderRadius:'14px',
+    background:'#1768e7',color:'#fff',fontSize:'18px',fontWeight:'800',
     boxShadow:'0 8px 28px rgba(0,0,0,.45)',whiteSpace:'nowrap',
     overflow:'hidden',textOverflow:'ellipsis',pointerEvents:'none',textAlign:'center'
   });
@@ -16,8 +16,17 @@ if(!activeEntryBanner){
 function positionActiveEntryBanner(){
   if(activeEntryBanner.style.display==='none')return;
   const vv=window.visualViewport;
-  const top=(vv?vv.offsetTop:window.scrollY)+10;
-  activeEntryBanner.style.top=top+'px';
+  if(vv){
+    const keyboardOpen=vv.height < window.innerHeight*0.82;
+    if(keyboardOpen){
+      const bannerH=activeEntryBanner.offsetHeight||48;
+      activeEntryBanner.style.top=(vv.offsetTop+vv.height-bannerH-10)+'px';
+      activeEntryBanner.style.bottom='auto';
+      return;
+    }
+  }
+  activeEntryBanner.style.top='auto';
+  activeEntryBanner.style.bottom='calc(env(safe-area-inset-bottom, 0px) + 12px)';
 }
 function showActiveEntry(el){
   const tr=el.closest('tr');
@@ -28,9 +37,9 @@ function showActiveEntry(el){
   let field='录入';
   const th=document.querySelector(`#thead th:nth-child(${idx+1})`);
   if(th&&th.textContent.trim())field=th.textContent.trim();
-  activeEntryBanner.textContent=`正在盘点：${name} · ${field}`;
+  activeEntryBanner.textContent=`${name} ｜ ${field}`;
   activeEntryBanner.style.display='block';
-  positionActiveEntryBanner();
+  requestAnimationFrame(positionActiveEntryBanner);
   tr.dataset.activeEntry='1';
   tr.style.outline='2px solid #1768e7';
   tr.style.outlineOffset='-2px';
@@ -45,10 +54,10 @@ function hideActiveEntry(el){
 }
 
 if(window.visualViewport){
-  visualViewport.addEventListener('resize',positionActiveEntryBanner);
-  visualViewport.addEventListener('scroll',positionActiveEntryBanner);
+  visualViewport.addEventListener('resize',()=>requestAnimationFrame(positionActiveEntryBanner));
+  visualViewport.addEventListener('scroll',()=>requestAnimationFrame(positionActiveEntryBanner));
 }
-window.addEventListener('scroll',positionActiveEntryBanner,{passive:true});
+window.addEventListener('scroll',()=>requestAnimationFrame(positionActiveEntryBanner),{passive:true});
 
 document.addEventListener('focusin',e=>{
   const el=e.target;
