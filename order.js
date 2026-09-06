@@ -1,20 +1,32 @@
-const ORDER_STORE='gumei-drink-order-v1';
+const ORDER_STORE='gumei-drink-order-v2';
+const DEFAULT_BEST={
+  '雪花纯生':48,'超级勇闯':36,'百威':36,'喜力':30,'老雪花':48,'青岛':42,
+  '大窑荔爱':42,'大窑橙诺':54,'北冰洋':36,'听可乐':30,'听雪碧':30,'无糖可乐':30,
+  '王老吉':30,'果粒橙':20,'大可乐':20,'大雪碧':20,'矿泉水':24,'唯怡豆奶':44,
+  '椰子水':15,'30白啤':18,'力波白啤':18,'LOOK':15
+};
 let orderRows=[];
 function loadOrderRows(){
   let saved={};try{saved=JSON.parse(localStorage.getItem(ORDER_STORE)||'{}')}catch(_){}
-  orderRows=BASE.map(r=>({name:r.name,caseSize:r.caseSize,best:n(saved[r.name]?.best),ambient:n(saved[r.name]?.ambient)}));
+  orderRows=BASE.filter(r=>r.name!=='光明酸奶').map(r=>({
+    name:r.name,
+    caseSize:r.caseSize,
+    best:saved[r.name]?.best!=null?n(saved[r.name].best):n(DEFAULT_BEST[r.name]),
+    current:saved[r.name]?.current!=null?n(saved[r.name].current):0
+  }));
 }
-function saveOrderRows(){const o={};orderRows.forEach(r=>o[r.name]={best:n(r.best),ambient:n(r.ambient)});localStorage.setItem(ORDER_STORE,JSON.stringify(o));}
-function orderCases(r){if(n(r.best)<=n(r.ambient))return 0;return Math.ceil((n(r.best)-n(r.ambient))/n(r.caseSize));}
+function saveOrderRows(){const o={};orderRows.forEach(r=>o[r.name]={best:n(r.best),current:n(r.current)});localStorage.setItem(ORDER_STORE,JSON.stringify(o));}
+function orderCases(r){if(n(r.best)<=n(r.current))return 0;return Math.ceil((n(r.best)-n(r.current))/n(r.caseSize));}
 function updateOrder(i,k,v){orderRows[i][k]=n(v);saveOrderRows();renderOrder();}
 function renderOrder(){
   if(!orderRows.length)loadOrderRows();
-  orderBody.innerHTML=orderRows.map((r,i)=>`<tr><td>${r.name}</td><td>${r.caseSize}</td><td><input type="number" inputmode="numeric" value="${r.best}" onfocus="if(this.value==='0')this.value=''" onblur="if(this.value==='')this.value='0'" onchange="updateOrder(${i},'best',this.value)"></td><td><input type="number" inputmode="numeric" value="${r.ambient}" onfocus="if(this.value==='0')this.value=''" onblur="if(this.value==='')this.value='0'" onchange="updateOrder(${i},'ambient',this.value)"></td><td class="${orderCases(r)?'orderNeed':''}">${orderCases(r)?orderCases(r)+'件':'—'}</td></tr>`).join('');
-  const needs=orderRows.filter(r=>orderCases(r)>0);orderCount.textContent=needs.length;orderCaseTotal.textContent=needs.reduce((s,r)=>s+orderCases(r),0);buildOrderText();
+  const body=document.getElementById('orderBody'),count=document.getElementById('orderCount'),caseTotal=document.getElementById('orderCaseTotal');
+  body.innerHTML=orderRows.map((r,i)=>`<tr><td>${r.name}</td><td>${r.caseSize}</td><td><input type="number" inputmode="numeric" value="${r.best}" onfocus="if(this.value==='0')this.value=''" onblur="if(this.value==='')this.value='0'" onchange="updateOrder(${i},'best',this.value)"></td><td><input type="number" inputmode="numeric" value="${r.current}" onfocus="if(this.value==='0')this.value=''" onblur="if(this.value==='')this.value='0'" onchange="updateOrder(${i},'current',this.value)"></td><td class="${orderCases(r)?'orderNeed':''}">${orderCases(r)?orderCases(r)+'件':'—'}</td></tr>`).join('');
+  const needs=orderRows.filter(r=>orderCases(r)>0);count.textContent=needs.length;caseTotal.textContent=needs.reduce((s,r)=>s+orderCases(r),0);buildOrderText();
 }
 function buildOrderText(){
   const needs=orderRows.filter(r=>orderCases(r)>0);const d=new Date();const title=`${d.getMonth()+1}月${d.getDate()}日酒水订货`;
-  orderOutput.value=title+(needs.length?'\n\n'+needs.map(r=>`${r.name} ${orderCases(r)}件`).join('\n'):'\n\n今日无需订货');
+  document.getElementById('orderOutput').value=title+(needs.length?'\n\n'+needs.map(r=>`${r.name} ${orderCases(r)}件`).join('\n'):'\n\n今日无需订货');
 }
-async function copyOrderText(){buildOrderText();try{await navigator.clipboard.writeText(orderOutput.value);toastMsg('订货信息已复制')}catch(_){orderOutput.select();document.execCommand('copy');toastMsg('订货信息已复制')}}
+async function copyOrderText(){buildOrderText();const out=document.getElementById('orderOutput');try{await navigator.clipboard.writeText(out.value);toastMsg('订货信息已复制')}catch(_){out.select();document.execCommand('copy');toastMsg('订货信息已复制')}}
 loadOrderRows();
