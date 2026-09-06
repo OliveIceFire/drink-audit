@@ -1,4 +1,4 @@
-yesterdayText.textContent=shortDate(YESTERDAY);todayText.textContent=shortDate(TODAY);duckYesterdayText.textContent=shortDate(YESTERDAY);duckTodayText.textContent=shortDate(TODAY);addEventListener('resize',render);openDate(TODAY);openDuckDate(TODAY);
+yesterdayText.textContent=shortDate(YESTERDAY);todayText.textContent=shortDate(TODAY);duckYesterdayText.textContent=shortDate(YESTERDAY);duckTodayText.textContent=shortDate(TODAY);addEventListener('resize',render);openDate(TODAY);openDuckDate(TODAY);restoreLastModule();
 
 let activeEntryBanner=document.getElementById('activeEntryBanner');
 if(!activeEntryBanner){
