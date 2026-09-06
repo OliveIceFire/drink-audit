@@ -31,7 +31,7 @@ function buildOrderText(){
   const normal=needs.filter(r=>!SPECIAL_ORDER_NAMES.has(r.name));
   const special=needs.filter(r=>SPECIAL_ORDER_NAMES.has(r.name));
   document.getElementById('orderOutput').value=orderTextFor(normal,`${date}酒水订货`);
-  document.getElementById('specialOrderOutput').value=orderTextFor(special,`${date}30公里、椰子水订货`);
+  document.getElementById('specialOrderOutput').value=special.length?special.map(r=>`${r.name} ${orderCases(r)}件`).join('\n'):'今日无需订货';
 }
 async function copyTextFrom(id,msg){buildOrderText();const out=document.getElementById(id);try{await navigator.clipboard.writeText(out.value);toastMsg(msg)}catch(_){out.select();document.execCommand('copy');toastMsg(msg)}}
 function copyOrderText(){return copyTextFrom('orderOutput','酒水订货信息已复制')}
