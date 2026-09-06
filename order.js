@@ -5,6 +5,7 @@ const DEFAULT_BEST={
   '王老吉':30,'果粒橙':20,'大可乐':20,'大雪碧':20,'矿泉水':24,'唯怡豆奶':44,
   '椰子水':15,'30白啤':18,'力波白啤':18,'LOOK':15
 };
+const SPECIAL_ORDER_NAMES=new Set(['30白啤','椰子水']);
 let orderRows=[];
 function loadOrderRows(){
   let saved={};try{saved=JSON.parse(localStorage.getItem(ORDER_STORE)||'{}')}catch(_){}
@@ -24,9 +25,15 @@ function renderOrder(){
   body.innerHTML=orderRows.map((r,i)=>`<tr><td>${r.name}</td><td>${r.caseSize}</td><td><input type="number" inputmode="numeric" value="${r.best}" onfocus="if(this.value==='0')this.value=''" onblur="if(this.value==='')this.value='0'" onchange="updateOrder(${i},'best',this.value)"></td><td><input type="number" inputmode="numeric" value="${r.current}" onfocus="if(this.value==='0')this.value=''" onblur="if(this.value==='')this.value='0'" onchange="updateOrder(${i},'current',this.value)"></td><td class="${orderCases(r)?'orderNeed':''}">${orderCases(r)?orderCases(r)+'件':'—'}</td></tr>`).join('');
   const needs=orderRows.filter(r=>orderCases(r)>0);count.textContent=needs.length;caseTotal.textContent=needs.reduce((s,r)=>s+orderCases(r),0);buildOrderText();
 }
+function orderTextFor(needs,title){return title+(needs.length?'\n\n'+needs.map(r=>`${r.name} ${orderCases(r)}件`).join('\n'):'\n\n今日无需订货')}
 function buildOrderText(){
-  const needs=orderRows.filter(r=>orderCases(r)>0);const d=new Date();const title=`${d.getMonth()+1}月${d.getDate()}日酒水订货`;
-  document.getElementById('orderOutput').value=title+(needs.length?'\n\n'+needs.map(r=>`${r.name} ${orderCases(r)}件`).join('\n'):'\n\n今日无需订货');
+  const needs=orderRows.filter(r=>orderCases(r)>0),d=new Date(),date=`${d.getMonth()+1}月${d.getDate()}日`;
+  const normal=needs.filter(r=>!SPECIAL_ORDER_NAMES.has(r.name));
+  const special=needs.filter(r=>SPECIAL_ORDER_NAMES.has(r.name));
+  document.getElementById('orderOutput').value=orderTextFor(normal,`${date}酒水订货`);
+  document.getElementById('specialOrderOutput').value=orderTextFor(special,`${date}30公里、椰子水订货`);
 }
-async function copyOrderText(){buildOrderText();const out=document.getElementById('orderOutput');try{await navigator.clipboard.writeText(out.value);toastMsg('订货信息已复制')}catch(_){out.select();document.execCommand('copy');toastMsg('订货信息已复制')}}
+async function copyTextFrom(id,msg){buildOrderText();const out=document.getElementById(id);try{await navigator.clipboard.writeText(out.value);toastMsg(msg)}catch(_){out.select();document.execCommand('copy');toastMsg(msg)}}
+function copyOrderText(){return copyTextFrom('orderOutput','酒水订货信息已复制')}
+function copySpecialOrderText(){return copyTextFrom('specialOrderOutput','30公里、椰子水订货已复制')}
 loadOrderRows();
