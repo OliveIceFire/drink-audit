@@ -10,11 +10,16 @@ function switchModule(m){
   if(!['order','water','duck'].includes(m))m='water';
   localStorage.setItem(LAST_MODULE_KEY,m);
   const active=document.activeElement;if(active&&typeof active.blur==='function')active.blur();
-  if(typeof activeEntryBanner!=='undefined'&&activeEntryBanner)activeEntryBanner.style.display='none';
+  const banner=document.getElementById('activeEntryBanner');if(banner)banner.style.display='none';
   document.querySelectorAll('#tbody tr').forEach(tr=>{tr.style.outline='';tr.style.outlineOffset='';delete tr.dataset.activeEntry});
-  orderPage.classList.toggle('active',m==='order');waterPage.classList.toggle('active',m==='water');duckPage.classList.toggle('active',m==='duck');
-  orderModuleBtn.classList.toggle('active',m==='order');waterModuleBtn.classList.toggle('active',m==='water');duckModuleBtn.classList.toggle('active',m==='duck');
-  if(m==='duck')openDuckDate(duckDate||TODAY);if(m==='order'&&typeof renderOrder==='function')renderOrder();
+  document.getElementById('orderPage').classList.toggle('active',m==='order');
+  document.getElementById('waterPage').classList.toggle('active',m==='water');
+  document.getElementById('duckPage').classList.toggle('active',m==='duck');
+  document.getElementById('orderModuleBtn').classList.toggle('active',m==='order');
+  document.getElementById('waterModuleBtn').classList.toggle('active',m==='water');
+  document.getElementById('duckModuleBtn').classList.toggle('active',m==='duck');
+  if(m==='duck')openDuckDate(duckDate||TODAY);
+  if(m==='order'&&typeof renderOrder==='function')renderOrder();
 }
 function restoreLastModule(){let m=localStorage.getItem(LAST_MODULE_KEY)||'water';if(!['order','water','duck'].includes(m))m='water';switchModule(m)}
 function toastMsg(t){toast.textContent=t;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2200)}
