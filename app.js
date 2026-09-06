@@ -1,5 +1,3 @@
-yesterdayText.textContent=shortDate(YESTERDAY);todayText.textContent=shortDate(TODAY);duckYesterdayText.textContent=shortDate(YESTERDAY);duckTodayText.textContent=shortDate(TODAY);addEventListener('resize',render);openDate(TODAY);openDuckDate(TODAY);restoreLastModule();
-
 let activeEntryBanner=document.getElementById('activeEntryBanner');
 if(!activeEntryBanner){
   activeEntryBanner=document.createElement('div');
@@ -13,6 +11,9 @@ if(!activeEntryBanner){
   });
   document.body.appendChild(activeEntryBanner);
 }
+
+yesterdayText.textContent=shortDate(YESTERDAY);todayText.textContent=shortDate(TODAY);duckYesterdayText.textContent=shortDate(YESTERDAY);duckTodayText.textContent=shortDate(TODAY);addEventListener('resize',render);openDate(TODAY);openDuckDate(TODAY);restoreLastModule();
+
 function positionActiveEntryBanner(){
   if(activeEntryBanner.style.display==='none')return;
   const vv=window.visualViewport;
