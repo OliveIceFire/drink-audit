@@ -1,11 +1,21 @@
 let pendingRemainingImport=null;
 
+(function mountFeishuPasteImporter(){
+  const oldInput=document.getElementById('auditImportImg');
+  const section=oldInput?.closest('section.box');
+  if(!section)return;
+  section.innerHTML=`<div class="boxTitle">导入昨日剩余库存</div>
+  <div class="hint">飞书兼容：直接在飞书表格里复制昨天“剩余库存”这一列，然后粘贴到这里。系统按当前25个品项顺序对应，确认后写入昨天，并自动同步为今天初始库存。</div>
+  <textarea id="yesterdayRemainingPaste" class="orderOutput" placeholder="例如直接从飞书复制这一列：&#10;45&#10;12&#10;24&#10;7&#10;11&#10;……"></textarea>
+  <div class="rowBtns"><button class="btn blue" onclick="previewYesterdayRemainingPaste()">识别并预览</button></div>
+  <div id="auditImportResult" class="result"></div>`;
+})();
+
 function parseFeishuRemainingPaste(text){
   text=(text||'').replace(/\r/g,'').trim();
   if(!text)return [];
   let lines=text.split('\n').map(s=>s.trim()).filter(Boolean);
 
-  // 1) 飞书直接复制“剩余库存”单列：一行一个数字。
   let single=[];
   for(let line of lines){
     let cells=line.split('\t').map(x=>x.trim()).filter(x=>x!=='');
@@ -13,7 +23,6 @@ function parseFeishuRemainingPaste(text){
   }
   if(single.length>=AUDIT_ROW_NAMES.length)return single.slice(0,AUDIT_ROW_NAMES.length);
 
-  // 2) 兼容粘贴整块飞书表格。优先找“剩余库存”表头所在列。
   let rows=lines.map(line=>line.split('\t').map(x=>x.trim()));
   let headerIndex=rows.findIndex(r=>r.some(c=>/剩余库存|剩余|余量/.test(c)));
   if(headerIndex>=0){
@@ -26,7 +35,6 @@ function parseFeishuRemainingPaste(text){
     if(values.length>=AUDIT_ROW_NAMES.length)return values.slice(0,AUDIT_ROW_NAMES.length);
   }
 
-  // 3) 兼容“品名 + 剩余库存”两列粘贴。
   let byName={};
   for(let row of rows){
     let joined=row.join(' '),m=matchOcrName(joined);if(!m)continue;
@@ -35,7 +43,6 @@ function parseFeishuRemainingPaste(text){
   }
   if(Object.keys(byName).length){return AUDIT_ROW_NAMES.map(name=>byName[name]??null)}
 
-  // 4) 最后兜底：从整段文本按顺序抽取数字。
   return [...text.matchAll(/(?:^|\s)(-?\d+(?:\.\d+)?)(?=\s|$)/g)].map(m=>Number(m[1])).slice(0,AUDIT_ROW_NAMES.length);
 }
 
