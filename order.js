@@ -1,39 +1,33 @@
-const ORDER_STORE='gumei-drink-order-v2';
-const DEFAULT_BEST={
-  '雪花纯生':48,'超级勇闯':36,'百威':36,'喜力':30,'老雪花':48,'青岛':42,
-  '大窑荔爱':42,'大窑橙诺':54,'北冰洋':36,'听可乐':30,'听雪碧':30,'无糖可乐':30,
-  '王老吉':30,'果粒橙':20,'大可乐':20,'大雪碧':20,'矿泉水':24,'唯怡豆奶':44,
-  '椰子水':15,'30白啤':18,'力波白啤':18,'LOOK':15
-};
+const ORDER_STORE='gumei-drink-order-v3';
+const DEFAULT_BEST={'雪花纯生':48,'超级勇闯':36,'百威':36,'喜力':30,'老雪花':48,'青岛':42,'大窑荔爱':42,'大窑橙诺':54,'北冰洋':36,'听可乐':30,'听雪碧':30,'无糖可乐':30,'王老吉':30,'果粒橙':20,'大可乐':20,'大雪碧':20,'矿泉水':24,'唯怡豆奶':44,'椰子水':15,'30白啤':18,'力波白啤':18,'LOOK':15};
 const SPECIAL_ORDER_NAMES=new Set(['30白啤','椰子水']);
+const NORMAL_MIN_CASES=5,SPECIAL_MIN_CASES=2,WEEKEND_FACTOR=1.25,WORKDAY_FACTOR=1;
 let orderRows=[];
-function loadOrderRows(){
-  let saved={};try{saved=JSON.parse(localStorage.getItem(ORDER_STORE)||'{}')}catch(_){}
-  orderRows=BASE.filter(r=>r.name!=='光明酸奶').map(r=>({
-    name:r.name,
-    caseSize:r.caseSize,
-    best:saved[r.name]?.best!=null?n(saved[r.name].best):n(DEFAULT_BEST[r.name]),
-    current:saved[r.name]?.current!=null?n(saved[r.name].current):0
-  }));
+function loadOrderRows(){let saved={};try{saved=JSON.parse(localStorage.getItem(ORDER_STORE)||'{}')}catch(_){}orderRows=BASE.filter(r=>r.name!=='光明酸奶').map(r=>({name:r.name,caseSize:r.caseSize,best:saved[r.name]?.best!=null?n(saved[r.name].best):n(DEFAULT_BEST[r.name]),current:saved[r.name]?.current!=null?n(saved[r.name].current):0}));}
+function saveOrderRows(){const out={};orderRows.forEach(r=>out[r.name]={best:n(r.best),current:n(r.current)});localStorage.setItem(ORDER_STORE,JSON.stringify(out));}
+function nextDayProfile(now=new Date()){const next=new Date(now);next.setDate(next.getDate()+1);const weekend=[0,6].includes(next.getDay());return {date:next,weekend,factor:weekend?WEEKEND_FACTOR:WORKDAY_FACTOR,label:weekend?'周末':'工作日'};}
+function savedSales(name,days=7){const values=[];for(let offset=1;offset<=days;offset++){const date=shiftDate(TODAY,-offset);try{const data=JSON.parse(localStorage.getItem(key(date))||'null');const row=Array.isArray(data)&&data.find(item=>item.name===name);if(row&&Number.isFinite(Number(row.sales)))values.push(n(row.sales));}catch(_){}}return values;}
+function expectedDemand(row,profile=nextDayProfile()){const history=savedSales(row.name),baseline=history.length?history.reduce((sum,value)=>sum+value,0)/history.length:Math.max(1,n(row.best)/7);return Math.max(1,Math.ceil(baseline*profile.factor));}
+function targetStock(row,profile=nextDayProfile()){return Math.ceil(n(row.best)*profile.factor)}
+function requiredCases(row,profile=nextDayProfile()){return Math.max(0,Math.ceil((targetStock(row,profile)-n(row.current))/n(row.caseSize)))}
+function riskScore(row,profile=nextDayProfile()){return n(row.current)/expectedDemand(row,profile)}
+function orderPlan(group,minimum,profile=nextDayProfile()){
+  const lines=group.map(row=>({...row,cases:requiredCases(row,profile),demand:expectedDemand(row,profile),target:targetStock(row,profile),topup:0}));
+  const needed=lines.reduce((sum,line)=>sum+line.cases,0),critical=lines.filter(line=>n(line.current)<line.demand);
+  if(!needed)return {lines,needed:0,total:0,status:'无需订货',reason:'所有品项均达到明日目标库存。'};
+  if(needed>=minimum)return {lines,needed,total:needed,status:'可下单',reason:`达到${minimum}件最低起送量。`};
+  if(!critical.length)return {lines,needed,total:0,status:'建议等待凑单',reason:`当前只需${needed}件，未发现明日断货风险；未满${minimum}件不生成订单。`};
+  let gap=minimum-needed,ranked=[...lines].sort((a,b)=>riskScore(a,profile)-riskScore(b,profile)||a.name.localeCompare(b.name));
+  for(let index=0;gap>0;index=(index+1)%ranked.length){ranked[index].topup++;gap--}
+  return {lines,needed,total:minimum,status:'可下单（防断货凑单）',reason:`发现次日断货风险：${critical.map(line=>line.name).join('、')}；已补足至${minimum}件最低起送量。`};
 }
-function saveOrderRows(){const o={};orderRows.forEach(r=>o[r.name]={best:n(r.best),current:n(r.current)});localStorage.setItem(ORDER_STORE,JSON.stringify(o));}
-function orderCases(r){if(n(r.best)<=n(r.current))return 0;return Math.ceil((n(r.best)-n(r.current))/n(r.caseSize));}
+function totalCases(line){return n(line.cases)+n(line.topup)}
 function updateOrder(i,k,v){orderRows[i][k]=n(v);saveOrderRows();renderOrder();}
-function renderOrder(){
-  if(!orderRows.length)loadOrderRows();
-  const body=document.getElementById('orderBody'),count=document.getElementById('orderCount'),caseTotal=document.getElementById('orderCaseTotal');
-  body.innerHTML=orderRows.map((r,i)=>`<tr><td>${r.name}</td><td>${r.caseSize}</td><td><input type="number" inputmode="numeric" value="${r.best}" onfocus="if(this.value==='0')this.value=''" onblur="if(this.value==='')this.value='0'" onchange="updateOrder(${i},'best',this.value)"></td><td><input type="number" inputmode="numeric" value="${r.current}" onfocus="if(this.value==='0')this.value=''" onblur="if(this.value==='')this.value='0'" onchange="updateOrder(${i},'current',this.value)"></td><td class="${orderCases(r)?'orderNeed':''}">${orderCases(r)?orderCases(r)+'件':'—'}</td></tr>`).join('');
-  const needs=orderRows.filter(r=>orderCases(r)>0);count.textContent=needs.length;caseTotal.textContent=needs.reduce((s,r)=>s+orderCases(r),0);buildOrderText();
-}
-function orderTextFor(needs,title){return title+(needs.length?'\n\n'+needs.map(r=>`${r.name} ${orderCases(r)}件`).join('\n'):'\n\n今日无需订货')}
-function buildOrderText(){
-  const needs=orderRows.filter(r=>orderCases(r)>0),d=new Date(),date=`${d.getMonth()+1}月${d.getDate()}日`;
-  const normal=needs.filter(r=>!SPECIAL_ORDER_NAMES.has(r.name));
-  const special=needs.filter(r=>SPECIAL_ORDER_NAMES.has(r.name));
-  document.getElementById('orderOutput').value=orderTextFor(normal,`${date}酒水订货`);
-  document.getElementById('specialOrderOutput').value=special.length?special.map(r=>`${r.name} ${orderCases(r)}件`).join('\n'):'今日无需订货';
-}
-async function copyTextFrom(id,msg){buildOrderText();const out=document.getElementById(id);try{await navigator.clipboard.writeText(out.value);toastMsg(msg)}catch(_){out.select();document.execCommand('copy');toastMsg(msg)}}
+function copyLatestAudit(){let latest='';for(let offset=0;offset<31;offset++){const date=shiftDate(TODAY,-offset);try{if(Array.isArray(JSON.parse(localStorage.getItem(key(date))||'null'))){latest=date;break}}catch(_){}}if(!latest){document.getElementById('orderPlanState').textContent='未找到已保存日盘；请在 02:20 直接填写各品项实际总余量。';return}try{const audit=JSON.parse(localStorage.getItem(key(latest)));orderRows.forEach(row=>{const source=audit.find(item=>item.name===row.name);if(source)row.current=n(source.actual);});saveOrderRows();renderOrder();document.getElementById('orderPlanState').textContent=`已带入 ${latest} 保存的实物余量。若 02:20 后有变动，请按实际总余量修改后再订货。`;}catch(_){document.getElementById('orderPlanState').textContent='读取最新日盘失败，请手工填写实际总余量。'}}
+function renderOrder(){if(!orderRows.length)loadOrderRows();const profile=nextDayProfile(),normalPlan=orderPlan(orderRows.filter(row=>!SPECIAL_ORDER_NAMES.has(row.name)),NORMAL_MIN_CASES,profile),specialPlan=orderPlan(orderRows.filter(row=>SPECIAL_ORDER_NAMES.has(row.name)),SPECIAL_MIN_CASES,profile),planByName=new Map([...normalPlan.lines,...specialPlan.lines].map(line=>[line.name,line]));const body=document.getElementById('orderBody'),count=document.getElementById('orderCount'),caseTotal=document.getElementById('orderCaseTotal');body.innerHTML=orderRows.map((row,index)=>{const plan=planByName.get(row.name),cases=totalCases(plan);return `<tr><td>${row.name}</td><td>${row.caseSize}</td><td><input type="number" inputmode="numeric" value="${row.best}" onchange="updateOrder(${index},'best',this.value)"></td><td><input type="number" inputmode="numeric" value="${row.current}" onchange="updateOrder(${index},'current',this.value)"></td><td class="${cases?'orderNeed':''}">${cases?cases+'件':'—'}</td></tr>`}).join('');count.textContent=[...normalPlan.lines,...specialPlan.lines].filter(line=>totalCases(line)>0).length;caseTotal.textContent=normalPlan.total+specialPlan.total;document.getElementById('orderPlanState').textContent=`明日按${profile.label}预测（系数 ${profile.factor}）。普通酒水群：${normalPlan.status}，${normalPlan.reason} 30白啤+椰子水：${specialPlan.status}，${specialPlan.reason}`;buildOrderText(normalPlan,specialPlan,profile);}
+function orderTextFor(plan,title,minimum){const lines=plan.lines.filter(line=>totalCases(line)>0);if(!plan.total)return `${title}\n\n${plan.status}：${plan.reason}`;return `${title}\n\n${lines.map(line=>`${line.name} ${totalCases(line)}件${line.topup?'（凑单）':''}`).join('\n')}\n\n合计 ${plan.total}件（最低${minimum}件起送）\n${plan.reason}`}
+function buildOrderText(normalPlan=orderPlan(orderRows.filter(row=>!SPECIAL_ORDER_NAMES.has(row.name)),NORMAL_MIN_CASES),specialPlan=orderPlan(orderRows.filter(row=>SPECIAL_ORDER_NAMES.has(row.name)),SPECIAL_MIN_CASES)){const d=new Date(),date=`${d.getMonth()+1}月${d.getDate()}日`;document.getElementById('orderOutput').value=orderTextFor(normalPlan,`${date}酒水订货`,NORMAL_MIN_CASES);document.getElementById('specialOrderOutput').value=orderTextFor(specialPlan,`${date}30公里、椰子水订货`,SPECIAL_MIN_CASES);}
+async function copyTextFrom(id,msg){const out=document.getElementById(id);try{await navigator.clipboard.writeText(out.value);toastMsg(msg)}catch(_){out.select();document.execCommand('copy');toastMsg(msg)}}
 function copyOrderText(){return copyTextFrom('orderOutput','酒水订货信息已复制')}
 function copySpecialOrderText(){return copyTextFrom('specialOrderOutput','30公里、椰子水订货已复制')}
 loadOrderRows();
