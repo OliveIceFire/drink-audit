@@ -13,7 +13,7 @@ function recordPhotoZone(zone,input){const count=input.files?.length||0;if(!coun
   const section=oldInput?.closest('section.box');
   if(!section)return;
   section.innerHTML=`<div class="boxTitle">导入昨日剩余库存</div>
-  <div class="hint">飞书兼容：直接在飞书表格里复制昨天“剩余库存”这一列，然后粘贴到这里。系统按当前26个统一品项顺序对应，确认后写入昨天，并自动同步为今天初始库存。</div>
+  <div class="hint">飞书兼容：直接在飞书表格里复制昨天“剩余库存”这一列，然后粘贴到这里。系统按当前${PASTE_ROW_NAMES.length}个统一品项顺序对应，确认后写入昨天，并自动同步为今天初始库存。</div>
   <textarea id="yesterdayRemainingPaste" class="orderOutput" placeholder="例如直接从飞书复制这一列：&#10;45&#10;12&#10;24&#10;7&#10;11&#10;……"></textarea>
   <div class="rowBtns"><button class="btn blue" onclick="previewYesterdayRemainingPaste()">识别并预览</button></div>
   <div id="auditImportResult" class="result"></div>
@@ -33,7 +33,8 @@ function parseFeishuRemainingPaste(text){
     let cells=line.split('\t').map(x=>x.trim()).filter(x=>x!=='');
     if(cells.length===1&&/^-?\d+(?:\.\d+)?$/.test(cells[0]))single.push(Number(cells[0]));
   }
-  if(single.length>=PASTE_ROW_NAMES.length)return single.slice(0,PASTE_ROW_NAMES.length);
+  if(single.length===26&&typeof LEGACY_BASE!=='undefined'){const legacy=LEGACY_BASE.map((row,i)=>({...row,actual:single[i]}));const unified=unifyDrinkRows(legacy);return PASTE_ROW_NAMES.map(name=>unified.find(row=>row.name===name).actual)}
+  if(single.length===PASTE_ROW_NAMES.length)return single;
 
   let rows=lines.map(line=>line.split('\t').map(x=>x.trim()));
   let headerIndex=rows.findIndex(r=>r.some(c=>/剩余库存|剩余|余量/.test(c)));
@@ -44,14 +45,15 @@ function parseFeishuRemainingPaste(text){
       let r=rows[i],cell=r[col];
       if(cell!=null&&/^-?\d+(?:\.\d+)?$/.test(cell))values.push(Number(cell));
     }
-    if(values.length>=PASTE_ROW_NAMES.length)return values.slice(0,PASTE_ROW_NAMES.length);
+    if(values.length===26&&typeof LEGACY_BASE!=='undefined')return parseFeishuRemainingPaste(values.join('\n'));
+    if(values.length===PASTE_ROW_NAMES.length)return values;
   }
 
   let byName={};
   for(let row of rows){
     let joined=row.join(' '),m=matchOcrName(joined);if(!m)continue;
     let nums=row.filter(c=>/^-?\d+(?:\.\d+)?$/.test(c)).map(Number);
-    if(nums.length)byName[m[0]]=nums[nums.length-1];
+    if(nums.length)byName[m[0]]=(byName[m[0]]??0)+nums[nums.length-1];
   }
   if(Object.keys(byName).length){return PASTE_ROW_NAMES.map(name=>byName[name]??null)}
 
@@ -64,14 +66,14 @@ function previewYesterdayRemainingPaste(){
   let vals=parseFeishuRemainingPaste(text);
   let valid=vals.filter(v=>v!==null&&v!==undefined&&!Number.isNaN(v)).length;
   if(valid!==PASTE_ROW_NAMES.length){
-    result.innerHTML=`<div style="color:#ffb25f;font-weight:700">识别到 ${valid}/${PASTE_ROW_NAMES.length} 个数字。</div><div style="margin-top:6px;color:#9eb2c7">请从飞书只复制“剩余库存”这一列，保持26行顺序不变，再粘贴一次。</div>`;
+    result.innerHTML=`<div style="color:#ffb25f;font-weight:700">识别到 ${valid}/${PASTE_ROW_NAMES.length} 个数字。</div><div style="margin-top:6px;color:#9eb2c7">请从飞书只复制“剩余库存”这一列，保持${PASTE_ROW_NAMES.length}行顺序不变，再粘贴一次。</div>`;
     return toastMsg(`只识别到 ${valid} 个，暂不写入`);
   }
   pendingRemainingImport={};
   PASTE_ROW_NAMES.forEach((name,i)=>pendingRemainingImport[name]=Number(vals[i])||0);
   let body=PASTE_ROW_NAMES.map(name=>`<tr><td style="padding:7px;white-space:nowrap">${name}</td><td><input type="number" inputmode="numeric" value="${pendingRemainingImport[name]}" style="width:78px;padding:8px 5px;border:1px solid #36516c;border-radius:7px;background:#0b1723;color:#fff;text-align:center;font-size:15px" onchange="pendingRemainingImport['${name}']=Number(this.value)||0"></td></tr>`).join('');
-  result.innerHTML=`<div style="margin-top:12px;font-weight:700;color:#fff">昨日剩余库存预览</div><div style="margin:7px 0;color:#9eb2c7">按飞书顺序对应26个统一品项。这里可以直接改数字，确认后才写入。</div><div style="max-height:440px;overflow:auto;border:1px solid #29445e;border-radius:10px"><table style="border-collapse:collapse;width:100%;font-size:14px"><thead><tr><th style="padding:8px">品名</th><th>昨日剩余</th></tr></thead><tbody>${body}</tbody></table></div><button class="btn green" style="width:100%;margin-top:12px" onclick="confirmYesterdayRemainingPaste()">确认写入昨天，并同步今天初始库存</button>`;
-  toastMsg('26项已识别，请核对');
+  result.innerHTML=`<div style="margin-top:12px;font-weight:700;color:#fff">昨日剩余库存预览</div><div style="margin:7px 0;color:#9eb2c7">按飞书顺序对应${PASTE_ROW_NAMES.length}个统一品项。这里可以直接改数字，确认后才写入。</div><div style="max-height:440px;overflow:auto;border:1px solid #29445e;border-radius:10px"><table style="border-collapse:collapse;width:100%;font-size:14px"><thead><tr><th style="padding:8px">品名</th><th>昨日剩余</th></tr></thead><tbody>${body}</tbody></table></div><button class="btn green" style="width:100%;margin-top:12px" onclick="confirmYesterdayRemainingPaste()">确认写入昨天，并同步今天初始库存</button>`;
+  toastMsg('${PASTE_ROW_NAMES.length}项已识别，请核对');
 }
 
 function confirmYesterdayRemainingPaste(){

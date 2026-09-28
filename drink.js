@@ -1,11 +1,12 @@
-function saved(d){let s=localStorage.getItem(key(d));return s?JSON.parse(s):null}
-function draft(d){let s=localStorage.getItem(draftKey(d));return s?JSON.parse(s):null}
+function readUnifiedDrinkRows(storageKey,d){const raw=localStorage.getItem(storageKey);if(!raw)return null;const original=JSON.parse(raw);if(original.some(row=>row.name==='光明酸奶')){const backupKey=storageKey+'-before-look-merge';if(!localStorage.getItem(backupKey))localStorage.setItem(backupKey,raw);localStorage.setItem(STORE+'-look-review-'+d,'1');for(const entryKey of [actualEntryKey(d),savedActualEntryKey(d)]){const names=JSON.parse(localStorage.getItem(entryKey)||'[]');localStorage.setItem(entryKey,JSON.stringify(names.filter(name=>name!=='LOOK'&&name!=='光明酸奶')))}}return unifyDrinkRows(original)}
+function saved(d){return readUnifiedDrinkRows(key(d),d)}
+function draft(d){return readUnifiedDrinkRows(draftKey(d),d)}
 function previousRows(d){let p=shiftDate(d,-1);return saved(p)||draft(p)||((p==='2026-09-01')?clone(BASE):null)}
 function freshFromPrevious(d){let prev=previousRows(d);if(prev)return prev.map(r=>({name:r.name,start:reconciledActual(r),cases:0,caseSize:n(r.caseSize),sales:0,actual:0,afterSales:0,openTable:0}));let blank=clone(BASE);blank.forEach(r=>{r.start=0;r.cases=0;r.sales=0;r.actual=0;r.afterSales=0;r.openTable=0});return blank}
 function defaultForDate(d){if(d==='2026-09-01')return clone(BASE);return freshFromPrevious(d)}
 function persist(){localStorage.setItem(draftKey(currentDate),JSON.stringify(rows))}
-function openDate(d){currentDate=d;let s=saved(d),q=draft(d);rows=s||q||defaultForDate(d);if(!s&&!q&&d===TODAY)persist();render();updateDateTabs()}
-function input(i,k,v){rows[i][k]=n(v);if(k==='actual')markActualEntered(rows[i].name);persist();render()}
+function openDate(d){currentDate=d;let s=saved(d),q=draft(d);rows=s||q||defaultForDate(d);if(!s&&!q&&d===TODAY)persist();render();updateDateTabs();if(localStorage.getItem(STORE+'-look-review-'+d))toastMsg('酸奶旧记录已合并为LOOK，请重新核对实物余量和每件瓶数')}
+function input(i,k,v){rows[i][k]=n(v);if(k==='actual'){markActualEntered(rows[i].name);if(rows[i].name==='LOOK')localStorage.removeItem(STORE+'-look-review-'+currentDate);}persist();render()}
 function quickNumberFocus(el){if(el.value==='0')el.value='';else requestAnimationFrame(()=>el.select())}
 function quickNumberBlur(el){if(el.value==='')el.value='0'}
 function numAttrs(){return 'inputmode="numeric" onfocus="quickNumberFocus(this)" onblur="quickNumberBlur(this)"'}
@@ -18,7 +19,7 @@ function saveDay(){localStorage.setItem(key(currentDate),JSON.stringify(rows));l
 function newDay(){currentDate=TODAY;rows=freshFromPrevious(TODAY);localStorage.removeItem(actualEntryKey(TODAY));localStorage.removeItem(savedActualEntryKey(TODAY));localStorage.setItem(draftKey(TODAY),JSON.stringify(rows));render();updateDateTabs();toastMsg('已新建今日日盘：初始继承昨日，剩余为0')}
 function carryYesterday(){let prev=previousRows(currentDate);if(!prev)return toastMsg('没有上一日记录');let mp=Object.fromEntries(prev.map(r=>[r.name,r]));rows.forEach(r=>{let p=mp[r.name];if(p){r.start=reconciledActual(p);r.caseSize=n(p.caseSize)||r.caseSize}r.cases=0;r.sales=0;r.actual=0;r.afterSales=0;r.openTable=0});localStorage.removeItem(actualEntryKey(currentDate));localStorage.removeItem(savedActualEntryKey(currentDate));persist();render();toastMsg('已继承上一日核账余量到初始')}
 function resetCurrent(){let s=saved(currentDate);rows=s?clone(s):defaultForDate(currentDate);if(s){let confirmed;try{confirmed=JSON.parse(localStorage.getItem(savedActualEntryKey(currentDate))||'null')}catch{}if(Array.isArray(confirmed))localStorage.setItem(actualEntryKey(currentDate),JSON.stringify(confirmed))}else localStorage.removeItem(actualEntryKey(currentDate));localStorage.setItem(draftKey(currentDate),JSON.stringify(rows));render();toastMsg(s?'已恢复最近保存':'已恢复默认日盘')}
-const ALIASES={'小噜渴':'LOOK','小鹿可':'LOOK','噜渴':'LOOK','look':'LOOK','LOOK':'LOOK','上海力波':'力波白啤','力波':'力波白啤','力波白啤':'力波白啤','超级勇闯':'超级勇闯','勇闯':'超级勇闯','大窑橙诺':'大窑橙诺','橙诺':'大窑橙诺'};
+const ALIASES={'光明酸奶':'LOOK','光明LOOK酸奶':'LOOK','小噜渴':'LOOK','小鹿可':'LOOK','噜渴':'LOOK','look':'LOOK','LOOK':'LOOK','上海力波':'力波白啤','力波':'力波白啤','力波白啤':'力波白啤','超级勇闯':'超级勇闯','勇闯':'超级勇闯','大窑橙诺':'大窑橙诺','橙诺':'大窑橙诺'};
 function norm(s,group){let t=s.trim();if(group===2&&t.includes('白啤'))return '30白啤';if(ALIASES[t])return ALIASES[t];let f=rows.find(r=>t.includes(r.name)||r.name.includes(t));if(f)return f.name;for(let k in ALIASES)if(t.toLowerCase().includes(k.toLowerCase()))return ALIASES[k];return t}
 function addParsed(name,qty,group,totals,unmatched){name=norm(name,group);let r=rows.find(x=>x.name===name);if(r)totals[name]=(totals[name]||0)+Number(qty);else unmatched.push(name)}
 function parseGeneric(text,group,totals,unmatched){let src=text.replace(/[，,；;\n]+/g,' '),re=/(\d+(?:\.\d+)?)\s*(?:件|箱)\s*([^0-9\s]+)|([^0-9\s]+?)\s*(\d+(?:\.\d+)?)\s*(?:件|箱)/g,m;while((m=re.exec(src))!==null){if(m[1])addParsed(m[2],m[1],group,totals,unmatched);else addParsed(m[3],m[4],group,totals,unmatched)}}

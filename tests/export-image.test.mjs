@@ -15,14 +15,14 @@ test('云端配置脚本使用独立版本参数，避免被旧 Service Worker �
   const index=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
   const worker=fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8');
   assert.match(index,/cloud-config\.js\?v=20260927a/);
-  assert.match(index,/drink\.js\?v=20260928a/);
-  assert.match(index,/audit-preview\.js\?v=20260928b/);
-  assert.match(worker,/drink-audit-v27/);
+  assert.match(index,/drink\.js\?v=20260929a/);
+  assert.match(index,/audit-preview\.js\?v=20260929a/);
+  assert.match(worker,/drink-audit-v28/);
   const cloud=fs.readFileSync(new URL('../cloud.js',import.meta.url),'utf8');
   assert.match(cloud,/management\.js\?v=20260928c/);
   assert.match(cloud,/sales-import\.js\?v=20260928e/);
   assert.match(index,/cloud\.js\?v=20260928e/);
-  assert.match(index,/order\.js\?v=20260928a/);
+  assert.match(index,/order\.js\?v=20260929a/);
   assert.match(cloud,/overnight\.js\?v=20260928a/);
 });
 
